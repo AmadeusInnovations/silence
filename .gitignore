@@ -1,0 +1,239 @@
+# Silence Crypto - Security-Focused .gitignore
+# ================================================
+
+# Rust/Cargo Build Artifacts
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# Tauri Build Artifacts
+/src-tauri/target/
+/src-tauri/Cargo.lock
+/src-tauri/WixTools/
+/src-tauri/icons/
+gen/
+
+# Platform-Specific Build Outputs
+*.dmg
+*.msi
+*.deb
+*.rpm
+*.AppImage
+*.exe
+*.app/
+bundle/
+
+# Development Tools
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs and Debug Information
+*.log
+debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime and Cache
+.npm
+.yarn-integrity
+.cache
+.parcel-cache
+.next
+.nuxt
+dist
+
+# Environment and Configuration
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Security Sensitive Files
+# ========================
+# Private Keys and Certificates
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.ppk
+
+# Cryptographic Material
+keystore/
+keys/
+secrets/
+*.keystore
+*.jks
+*.p8
+
+# Sensitive Documentation and Notes
+SECRETS.md
+KEYS.md
+PASSWORDS.md
+CREDENTIALS.md
+PRIVATE_NOTES.md
+TODO_SENSITIVE.md
+DEPLOYMENT_SECRETS.md
+INTERNAL_*.md
+*_CONFIDENTIAL.*
+*_SECRET.*
+*_PRIVATE.*
+
+# Database and Configuration with Secrets
+config/database.yml
+config/secrets.yml
+config/master.key
+*.sqlite3
+*.db
+
+# Backup Files (may contain sensitive data)
+*.bak
+*.backup
+*.old
+*.orig
+*.save
+*.tmp
+
+# Memory Dumps and Core Files
+*.dump
+core.*
+vgcore.*
+*.dmp
+
+# Test Coverage and Reports (may reveal code structure)
+coverage/
+*.gcov
+*.lcov
+.nyc_output
+htmlcov/
+
+# Node.js Security
+package-lock.json.bak
+.npmrc
+
+# macOS Keychain
+*.keychain
+
+# Windows Credential Store
+*.credstore
+
+# Project-Specific Exclusions
+# ============================
+# Silence Crypto specific files that should not be committed
+
+# Generated icons (can be regenerated)
+icons/generated/
+
+# Local configuration overrides
+silence.local.toml
+config.local.*
+
+# Test keys and certificates (development only)
+test_keys/
+dev_certs/
+
+# Performance profiling data
+*.prof
+perf.data*
+
+# Documentation build artifacts
+docs/_build/
+site/
+
+# Temporary development files
+scratch/
+temp/
+tmp/
+*.temp
+
+# IDE specific project files
+*.sublime-project
+*.sublime-workspace
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# VS Code
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.history/
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Vim
+*.swp
+*.swo
+.netrwhist
+
+# Archive and compressed files (may contain sensitive data)
+*.zip
+*.tar.gz
+*.tar.bz2
+*.rar
+*.7z
+*.gz
+
+# Docker (may contain credentials)
+.dockerignore.bak
+docker-compose.override.yml
+.docker/
+
+# Kubernetes secrets
+*-secret.yaml
+*-secret.yml
+
+# Terraform (may contain state with sensitive data)
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform.tfvars
+*.auto.tfvars
+
+# Cloud provider credentials
+.aws/
+.azure/
+.gcp/
+*-service-account.json
+
+# CI/CD secrets and configs
+.github/workflows/*.yml.bak
+.gitlab-ci.local.yml
+jenkins.credentials
+
+# End of Security-Focused .gitignore
