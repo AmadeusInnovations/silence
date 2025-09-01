@@ -1,0 +1,41 @@
+[package]
+name = "silence_crypto"
+version = "0.1.0"
+edition = "2021"
+description = "Ephemeral Key Cascade P2P Secure Communication"
+authors = ["Claude <noreply@anthropic.com>"]
+
+[dependencies]
+# Async runtime - minimal features for P2P networking
+tokio = { version = "1.0", features = ["net", "time", "macros", "rt", "io-util"] }
+
+# GUI framework - lightweight cross-platform
+tauri = { version = "1.0", features = ["window-all"] }
+
+# Cryptography - using stable, well-tested libraries
+ed25519-dalek = "2.0"    # Digital signatures
+x25519-dalek = "2.0"     # Key exchange
+curve25519-dalek = "4.0" # Elliptic curve operations
+
+# Symmetric cryptography - fast and secure
+chacha20poly1305 = "0.10"
+hkdf = "0.12"
+sha2 = "0.10"
+
+# Utilities - minimal footprint
+bincode = "1.3"          # Binary serialization
+zeroize = "1.6"          # Secure memory clearing
+rand = "0.8"             # Random generation
+serde = { version = "1.0", features = ["derive"] }
+uuid = { version = "1.0", features = ["v4"] }
+
+[build-dependencies]
+tauri-build = "1.0"
+
+[profile.release]
+# Optimize for size and security
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+opt-level = "s"  # Optimize for size
