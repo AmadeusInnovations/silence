@@ -27,12 +27,17 @@
     "active": true,
     "category": "Utility",
     "copyright": "© 2025 Silence",
-    "icon": ["icons/icon.icns", "icons/icon.png"],
+    "icon": ["icons/icon.icns", "icons/icon.ico", "icons/icon.png"],
     "longDescription": "Secure peer-to-peer communication with perfect forward secrecy",
     "shortDescription": "Secure P2P Communication",
     "targets": "all",
     "macOS": {
       "minimumSystemVersion": "10.13"
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
     }
   }
 }
