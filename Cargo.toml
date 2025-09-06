@@ -1,5 +1,9 @@
+[workspace]
+members = [".", "relay-server", "deploy-tool"]
+resolver = "2"
+
 [package]
-name = "silence_crypto"
+name = "silence"
 version = "0.1.0"
 edition = "2021"
 description = "Ephemeral Key Cascade P2P Secure Communication"
@@ -10,7 +14,7 @@ authors = ["Claude <noreply@anthropic.com>"]
 tokio = { version = "1.0", features = ["net", "time", "macros", "rt", "io-util"] }
 
 # GUI framework - lightweight cross-platform
-tauri = { version = "1.0", features = ["window-all"] }
+tauri = { version = "2.0", features = [] }
 
 # Cryptography - using stable, well-tested libraries
 ed25519-dalek = "2.0"    # Digital signatures
@@ -28,9 +32,10 @@ zeroize = "1.6"          # Secure memory clearing
 rand = "0.8"             # Random generation
 serde = { version = "1.0", features = ["derive"] }
 uuid = { version = "1.0", features = ["v4"] }
+tracing = "0.1"          # Structured logging
 
 [build-dependencies]
-tauri-build = "1.0"
+tauri-build = { version = "2.0", features = [] }
 
 [profile.release]
 # Optimize for size and security

@@ -238,6 +238,7 @@ impl P2PServer {
 pub struct ConnectionManager {
     crypto: Arc<Mutex<SilenceCrypto>>,
     max_message_size: usize,
+    relay_servers: Vec<String>,
 }
 
 impl ConnectionManager {
@@ -246,6 +247,20 @@ impl ConnectionManager {
         Self {
             crypto,
             max_message_size,
+            relay_servers: Vec::new(),
+        }
+    }
+    
+    /// Create new connection manager with relay servers
+    pub fn with_relays(
+        crypto: Arc<Mutex<SilenceCrypto>>, 
+        max_message_size: usize,
+        relay_servers: Vec<String>
+    ) -> Self {
+        Self {
+            crypto,
+            max_message_size,
+            relay_servers,
         }
     }
     
@@ -262,9 +277,37 @@ impl ConnectionManager {
         Ok(connection)
     }
     
-    /// Connect to peer
+    /// Connect to peer (try direct first, then relay)
     pub async fn connect_to_peer(&self, addr: SocketAddr) -> Result<P2PConnection, NetworkError> {
-        P2PConnection::connect(addr, Arc::clone(&self.crypto), self.max_message_size).await
+        // Try direct connection first
+        match P2PConnection::connect(addr, Arc::clone(&self.crypto), self.max_message_size).await {
+            Ok(connection) => {
+                tracing::info!("Direct P2P connection established to {}", addr);
+                Ok(connection)
+            }
+            Err(direct_err) => {
+                tracing::warn!("Direct connection failed: {}, trying relay servers", direct_err);
+                
+                // Try relay servers
+                for relay in &self.relay_servers {
+                    if let Ok(relay_addr) = relay.parse::<SocketAddr>() {
+                        match P2PConnection::connect(relay_addr, Arc::clone(&self.crypto), self.max_message_size).await {
+                            Ok(connection) => {
+                                tracing::info!("Relay connection established via {}", relay);
+                                return Ok(connection);
+                            }
+                            Err(relay_err) => {
+                                tracing::warn!("Relay {} failed: {}", relay, relay_err);
+                                continue;
+                            }
+                        }
+                    }
+                }
+                
+                // All relay attempts failed, return original direct connection error
+                Err(direct_err)
+            }
+        }
     }
 }
 

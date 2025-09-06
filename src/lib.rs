@@ -13,6 +13,7 @@ pub struct Config {
     pub key_rotation_interval: u64,
     pub max_message_size: usize,
     pub connection_timeout: u64,
+    pub relay_servers: Vec<String>,
 }
 
 impl Default for Config {
@@ -22,6 +23,10 @@ impl Default for Config {
             key_rotation_interval: 15, // seconds
             max_message_size: 4096,    // 4KB
             connection_timeout: 30,    // seconds
+            relay_servers: vec![
+                // Add your Cherry Server relay endpoints here
+                // Example: "your-server.cherryservers.net:8080".to_string()
+            ],
         }
     }
 }

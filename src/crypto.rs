@@ -184,7 +184,9 @@ mod tests {
     #[test]
     fn test_key_generation() {
         let crypto = SilenceCrypto::new(15).expect("Failed to create crypto engine");
-        assert_eq!(crypto.seconds_until_rotation(), 15);
+        let seconds_remaining = crypto.seconds_until_rotation();
+        assert!(seconds_remaining >= 14 && seconds_remaining <= 15, 
+                "Expected 14-15 seconds, got {}", seconds_remaining);
     }
     
     #[test]

@@ -1,85 +1,38 @@
 {
+  "productName": "Silence",
+  "version": "0.1.0",
+  "identifier": "com.amadeus.silence",
   "build": {
     "beforeBuildCommand": "",
     "beforeDevCommand": "",
-    "devPath": "src-tauri",
-    "distDir": "src-tauri"
+    "frontendDist": "dist"
   },
-  "package": {
-    "productName": "Silence Crypto",
-    "version": "0.1.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": false
-      },
-      "dialog": {
-        "all": false
-      },
-      "fs": {
-        "all": false
-      },
-      "http": {
-        "all": false
-      },
-      "notification": {
-        "all": false
-      },
-      "process": {
-        "all": false
-      },
-      "protocol": {
-        "all": false
-      },
-      "window": {
-        "all": true
-      }
-    },
-    "bundle": {
-      "active": false,
-      "category": "Utility",
-      "copyright": "",
-      "deb": {
-        "depends": []
-      },
-      "externalBin": [],
-      "identifier": "com.silence.crypto",
-      "longDescription": "",
-      "macOS": {
-        "entitlements": null,
-        "exceptionDomain": "",
-        "frameworks": [],
-        "providerShortName": null,
-        "signingIdentity": null
-      },
-      "resources": [],
-      "shortDescription": "Secure P2P Communication",
-      "targets": "all",
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
-    },
-    "security": {
-      "csp": null
-    },
-    "updater": {
-      "active": false
-    },
+  "app": {
     "windows": [
       {
         "fullscreen": false,
         "height": 700,
         "resizable": true,
-        "title": "Silence Crypto - Secure P2P",
+        "title": "Silence - Secure P2P",
         "width": 900,
         "minWidth": 600,
         "minHeight": 500
       }
-    ]
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "category": "Utility",
+    "copyright": "© 2025 Silence",
+    "icon": ["icons/icon.icns", "icons/icon.png"],
+    "longDescription": "Secure peer-to-peer communication with perfect forward secrecy",
+    "shortDescription": "Secure P2P Communication",
+    "targets": "all",
+    "macOS": {
+      "minimumSystemVersion": "10.13"
+    }
   }
 }

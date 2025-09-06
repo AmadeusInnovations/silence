@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 use tauri::{command, generate_handler, Builder, State};
 use std::net::SocketAddr;
 
-use silence_crypto::{
+use silence::{
     SilenceCrypto, 
     P2PConnection, 
     ConnectionManager,
@@ -36,9 +36,40 @@ async fn connect_to_peer(
         .await
         .map_err(|e| format!("Connection failed: {}", e))?;
     
-    // Store the active connection
-    let mut active_conn = state.active_connection.lock().await;
-    *active_conn = Some(connection);
+    // Store the active connection and start message receiving
+    {
+        let mut active_conn = state.active_connection.lock().await;
+        *active_conn = Some(connection);
+    }
+    
+    // Start message receiving loop for client connection
+    let active_connection = Arc::clone(&state.active_connection);
+    tokio::spawn(async move {
+        loop {
+            let mut active_conn = active_connection.lock().await;
+            if let Some(ref mut conn) = active_conn.as_mut() {
+                match conn.receive_message().await {
+                    Ok(Some(message)) => {
+                        println!("Received message: {}", message);
+                        // TODO: Forward message to GUI via Tauri events
+                    }
+                    Ok(None) => {
+                        // Connection closed
+                        println!("Connection closed by peer");
+                        *active_conn = None;
+                        break;
+                    }
+                    Err(e) => {
+                        eprintln!("Receive error: {}", e);
+                        *active_conn = None;
+                        break;
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+    });
     
     Ok(format!("Connected to {}", address))
 }
@@ -48,12 +79,56 @@ async fn connect_to_peer(
 async fn start_listening(
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    let _bind_addr = format!("0.0.0.0:{}", state.config.listen_port)
+    let bind_addr = format!("0.0.0.0:{}", state.config.listen_port)
         .parse::<SocketAddr>()
         .map_err(|e| format!("Invalid bind address: {}", e))?;
     
-    // TODO: Implement proper message handler for GUI integration
-    // This is a placeholder for the completion guide
+    // Start server in background task to accept incoming connection
+    let connection_manager = Arc::clone(&state.connection_manager);
+    let active_connection = Arc::clone(&state.active_connection);
+    
+    tokio::spawn(async move {
+        match connection_manager.start_server(bind_addr).await {
+            Ok(connection) => {
+                println!("Peer connected successfully");
+                
+                // Store the connection
+                {
+                    let mut active_conn = active_connection.lock().await;
+                    *active_conn = Some(connection);
+                }
+                
+                // Start message receiving loop
+                loop {
+                    let mut active_conn = active_connection.lock().await;
+                    if let Some(ref mut conn) = active_conn.as_mut() {
+                        match conn.receive_message().await {
+                            Ok(Some(message)) => {
+                                println!("Received message: {}", message);
+                                // TODO: Forward message to GUI via Tauri events
+                            }
+                            Ok(None) => {
+                                // Connection closed
+                                println!("Connection closed by peer");
+                                *active_conn = None;
+                                break;
+                            }
+                            Err(e) => {
+                                eprintln!("Receive error: {}", e);
+                                *active_conn = None;
+                                break;
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Server error: {}", e);
+            }
+        }
+    });
     
     Ok(format!("Listening on port {}", state.config.listen_port))
 }
@@ -125,9 +200,8 @@ async fn initialize_crypto(config: &Config) -> Arc<Mutex<SilenceCrypto>> {
             let mut crypto_guard = crypto_for_rotation.lock().await;
             if let Err(e) = crypto_guard.rotate_keys() {
                 eprintln!("Automatic key rotation failed: {}", e);
-            } else {
-                println!("🔄 Keys automatically rotated");
             }
+            // Key rotation now silent - status shown in UI timestamp
         }
     });
     
@@ -142,10 +216,11 @@ async fn main() {
     // Initialize cryptographic engine
     let crypto = initialize_crypto(&config).await;
     
-    // Initialize connection manager
-    let connection_manager = Arc::new(ConnectionManager::new(
+    // Initialize connection manager with relay servers
+    let connection_manager = Arc::new(ConnectionManager::with_relays(
         Arc::clone(&crypto),
         config.max_message_size,
+        config.relay_servers.clone(),
     ));
     
     // Create application state

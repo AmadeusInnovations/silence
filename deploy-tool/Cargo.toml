@@ -1,0 +1,47 @@
+[package]
+name = "deploy-tool"
+version = "0.1.0"
+edition = "2021"
+description = "Rust-based deployment tool for Silence Relay Server on Cherry Servers"
+
+[[bin]]
+name = "deploy"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime for SSH operations
+tokio = { version = "1.0", features = ["full"] }
+
+# SSH client library  
+ssh2 = "0.9"
+
+# Command line argument parsing
+clap = { version = "4.0", features = ["derive", "env"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# File operations and compression
+tar = "0.4"
+flate2 = "1.0"
+
+# Path utilities
+dirs = "5.0"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+
+# Filesystem operations
+tempfile = "3.0"
+
+# Base64 encoding for file transfer
+base64 = "0.21"
+
+# Async trait support
+async-trait = "0.1"
