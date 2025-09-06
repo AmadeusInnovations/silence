@@ -72,6 +72,7 @@ pub struct P2PConnection {
     peer_addr: SocketAddr,
     crypto: Arc<Mutex<SilenceCrypto>>,
     max_message_size: usize,
+    is_relay: bool,
 }
 
 impl P2PConnection {
@@ -81,12 +82,14 @@ impl P2PConnection {
         peer_addr: SocketAddr,
         crypto: Arc<Mutex<SilenceCrypto>>,
         max_message_size: usize,
+        is_relay: bool,
     ) -> Self {
         Self {
             stream,
             peer_addr,
             crypto,
             max_message_size,
+            is_relay,
         }
     }
     
@@ -95,9 +98,10 @@ impl P2PConnection {
         addr: SocketAddr,
         crypto: Arc<Mutex<SilenceCrypto>>,
         max_message_size: usize,
+        is_relay: bool,
     ) -> Result<Self, NetworkError> {
         let stream = TcpStream::connect(addr).await?;
-        Ok(Self::new(stream, addr, crypto, max_message_size).await)
+        Ok(Self::new(stream, addr, crypto, max_message_size, is_relay).await)
     }
     
     /// Send a text message
@@ -116,17 +120,33 @@ impl P2PConnection {
     
     /// Send a network message
     async fn send_message(&mut self, message: &NetworkMessage) -> Result<(), NetworkError> {
-        let serialized = bincode::serialize(message)?;
-        
-        if serialized.len() > self.max_message_size {
-            return Err(NetworkError::MessageTooLarge);
+        if self.is_relay {
+            // For relay connections, send serialized encrypted message
+            let data = bincode::serialize(&message.encrypted_data)?;
+            
+            if data.len() > self.max_message_size {
+                return Err(NetworkError::MessageTooLarge);
+            }
+            
+            // Send length prefix (4 bytes) followed by serialized encrypted data
+            let length = data.len() as u32;
+            self.stream.write_u32(length).await?;
+            self.stream.write_all(&data).await?;
+            self.stream.flush().await?;
+        } else {
+            // For direct P2P connections, send full NetworkMessage
+            let serialized = bincode::serialize(message)?;
+            
+            if serialized.len() > self.max_message_size {
+                return Err(NetworkError::MessageTooLarge);
+            }
+            
+            // Send length prefix (4 bytes) followed by message
+            let length = serialized.len() as u32;
+            self.stream.write_u32(length).await?;
+            self.stream.write_all(&serialized).await?;
+            self.stream.flush().await?;
         }
-        
-        // Send length prefix (4 bytes) followed by message
-        let length = serialized.len() as u32;
-        self.stream.write_u32(length).await?;
-        self.stream.write_all(&serialized).await?;
-        self.stream.flush().await?;
         
         Ok(())
     }
@@ -148,27 +168,37 @@ impl P2PConnection {
         let mut buffer = vec![0u8; length];
         self.stream.read_exact(&mut buffer).await?;
         
-        // Deserialize message
-        let message: NetworkMessage = bincode::deserialize(&buffer)?;
-        
-        // Decrypt and process based on type
-        match message.message_type {
-            MessageType::Text => {
-                let mut crypto = self.crypto.lock().await;
-                let decrypted = crypto.decrypt(&message.encrypted_data)?;
-                let text = String::from_utf8(decrypted)
-                    .map_err(|_| NetworkError::InvalidMessage)?;
-                Ok(Some(text))
-            }
-            MessageType::KeyRotation => {
-                // Handle key rotation notification
-                let mut crypto = self.crypto.lock().await;
-                crypto.rotate_keys()?;
-                Ok(None) // Don't return key rotation as user message
-            }
-            MessageType::Heartbeat => {
-                // Handle heartbeat
-                Ok(None) // Don't return heartbeat as user message
+        if self.is_relay {
+            // For relay connections, buffer contains serialized encrypted data from other peer
+            let encrypted_data: crate::crypto::EncryptedMessage = bincode::deserialize(&buffer)?;
+            let mut crypto = self.crypto.lock().await;
+            let decrypted = crypto.decrypt(&encrypted_data)?;
+            let text = String::from_utf8(decrypted)
+                .map_err(|_| NetworkError::InvalidMessage)?;
+            Ok(Some(text))
+        } else {
+            // For direct P2P connections, deserialize NetworkMessage
+            let message: NetworkMessage = bincode::deserialize(&buffer)?;
+            
+            // Decrypt and process based on type
+            match message.message_type {
+                MessageType::Text => {
+                    let mut crypto = self.crypto.lock().await;
+                    let decrypted = crypto.decrypt(&message.encrypted_data)?;
+                    let text = String::from_utf8(decrypted)
+                        .map_err(|_| NetworkError::InvalidMessage)?;
+                    Ok(Some(text))
+                }
+                MessageType::KeyRotation => {
+                    // Handle key rotation notification
+                    let mut crypto = self.crypto.lock().await;
+                    crypto.rotate_keys()?;
+                    Ok(None) // Don't return key rotation as user message
+                }
+                MessageType::Heartbeat => {
+                    // Handle heartbeat
+                    Ok(None) // Don't return heartbeat as user message
+                }
             }
         }
     }
@@ -223,6 +253,7 @@ impl P2PServer {
             addr,
             Arc::clone(&self.crypto),
             self.max_message_size,
+            false, // Server connections are direct P2P, not relay
         ).await)
     }
     
@@ -287,7 +318,7 @@ impl ConnectionManager {
         match mode {
             crate::ConnectionMode::Auto => {
                 // Try direct connection first
-                match P2PConnection::connect(addr, Arc::clone(&self.crypto), self.max_message_size).await {
+                match P2PConnection::connect(addr, Arc::clone(&self.crypto), self.max_message_size, false).await {
                     Ok(connection) => {
                         tracing::info!("Direct P2P connection established to {}", addr);
                         Ok(connection)
@@ -300,7 +331,7 @@ impl ConnectionManager {
             }
             crate::ConnectionMode::DirectOnly => {
                 // Only try direct connection
-                match P2PConnection::connect(addr, Arc::clone(&self.crypto), self.max_message_size).await {
+                match P2PConnection::connect(addr, Arc::clone(&self.crypto), self.max_message_size, false).await {
                     Ok(connection) => {
                         tracing::info!("Direct P2P connection established to {}", addr);
                         Ok(connection)
@@ -323,7 +354,7 @@ impl ConnectionManager {
     async fn connect_via_relay(&self) -> Result<P2PConnection, NetworkError> {
         for relay in &self.relay_servers {
             if let Ok(relay_addr) = relay.parse::<SocketAddr>() {
-                match P2PConnection::connect(relay_addr, Arc::clone(&self.crypto), self.max_message_size).await {
+                match P2PConnection::connect(relay_addr, Arc::clone(&self.crypto), self.max_message_size, true).await {
                     Ok(connection) => {
                         tracing::info!("Relay connection established via {}", relay);
                         return Ok(connection);
@@ -371,7 +402,7 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(100)).await;
         
         // Connect and send message
-        let mut client = P2PConnection::connect(actual_addr, crypto2, 4096).await.unwrap();
+        let mut client = P2PConnection::connect(actual_addr, crypto2, 4096, false).await.unwrap();
         
         timeout(Duration::from_secs(5), client.send_text("Hello, P2P!"))
             .await
