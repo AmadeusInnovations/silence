@@ -255,6 +255,11 @@
         
         <div class="connection-bar">
             <input type="text" id="peer-address" placeholder="Enter peer IP:port (e.g., 192.168.1.100:8080)" />
+            <select id="connection-mode" style="margin: 0 8px; padding: 8px; background: #2a2a2a; color: white; border: 1px solid #404040; border-radius: 4px;">
+                <option value="auto">Auto (P2P → Relay)</option>
+                <option value="direct">Direct P2P Only</option>
+                <option value="relay">Relay Only</option>
+            </select>
             <button class="btn" onclick="connectToPeer()">Connect</button>
             <button class="btn secondary" onclick="startListening()">Listen</button>
         </div>
@@ -322,16 +327,24 @@
         // Connection Functions (Stubs for Tauri integration)
         function connectToPeer() {
             const address = document.getElementById('peer-address').value.trim();
+            const mode = document.getElementById('connection-mode').value;
+            
             if (!address) {
                 addMessage('⚠️ Please enter a peer address', 'system');
                 return;
             }
             
-            addMessage(`🔌 Attempting to connect to ${address}...`, 'system');
+            const modeText = {
+                'auto': 'Auto (P2P → Relay)',
+                'direct': 'Direct P2P Only',
+                'relay': 'Relay Only'
+            }[mode] || 'Auto';
+            
+            addMessage(`🔌 Attempting to connect to ${address} using ${modeText}...`, 'system');
             updateConnectionStatus('connecting');
             
-            // Connect using Tauri command
-            invoke('connect_to_peer', { address })
+            // Connect using Tauri command with mode
+            invoke('connect_to_peer', { address, mode })
                 .then(result => {
                     addMessage(`✅ ${result}`, 'system');
                     updateConnectionStatus('connected');

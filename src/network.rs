@@ -279,35 +279,67 @@ impl ConnectionManager {
     
     /// Connect to peer (try direct first, then relay)
     pub async fn connect_to_peer(&self, addr: SocketAddr) -> Result<P2PConnection, NetworkError> {
-        // Try direct connection first
-        match P2PConnection::connect(addr, Arc::clone(&self.crypto), self.max_message_size).await {
-            Ok(connection) => {
-                tracing::info!("Direct P2P connection established to {}", addr);
-                Ok(connection)
-            }
-            Err(direct_err) => {
-                tracing::warn!("Direct connection failed: {}, trying relay servers", direct_err);
-                
-                // Try relay servers
-                for relay in &self.relay_servers {
-                    if let Ok(relay_addr) = relay.parse::<SocketAddr>() {
-                        match P2PConnection::connect(relay_addr, Arc::clone(&self.crypto), self.max_message_size).await {
-                            Ok(connection) => {
-                                tracing::info!("Relay connection established via {}", relay);
-                                return Ok(connection);
-                            }
-                            Err(relay_err) => {
-                                tracing::warn!("Relay {} failed: {}", relay, relay_err);
-                                continue;
-                            }
-                        }
+        self.connect_with_mode(addr, crate::ConnectionMode::Auto).await
+    }
+    
+    /// Connect to peer with specific connection mode
+    pub async fn connect_with_mode(&self, addr: SocketAddr, mode: crate::ConnectionMode) -> Result<P2PConnection, NetworkError> {
+        match mode {
+            crate::ConnectionMode::Auto => {
+                // Try direct connection first
+                match P2PConnection::connect(addr, Arc::clone(&self.crypto), self.max_message_size).await {
+                    Ok(connection) => {
+                        tracing::info!("Direct P2P connection established to {}", addr);
+                        Ok(connection)
+                    }
+                    Err(direct_err) => {
+                        tracing::warn!("Direct connection failed: {}, trying relay servers", direct_err);
+                        self.connect_via_relay().await.or(Err(direct_err))
                     }
                 }
-                
-                // All relay attempts failed, return original direct connection error
-                Err(direct_err)
+            }
+            crate::ConnectionMode::DirectOnly => {
+                // Only try direct connection
+                match P2PConnection::connect(addr, Arc::clone(&self.crypto), self.max_message_size).await {
+                    Ok(connection) => {
+                        tracing::info!("Direct P2P connection established to {}", addr);
+                        Ok(connection)
+                    }
+                    Err(err) => {
+                        tracing::error!("Direct connection failed (direct-only mode): {}", err);
+                        Err(err)
+                    }
+                }
+            }
+            crate::ConnectionMode::RelayOnly => {
+                // Only try relay connections
+                tracing::info!("Using relay-only connection mode");
+                self.connect_via_relay().await
             }
         }
+    }
+    
+    /// Connect via relay servers only
+    async fn connect_via_relay(&self) -> Result<P2PConnection, NetworkError> {
+        for relay in &self.relay_servers {
+            if let Ok(relay_addr) = relay.parse::<SocketAddr>() {
+                match P2PConnection::connect(relay_addr, Arc::clone(&self.crypto), self.max_message_size).await {
+                    Ok(connection) => {
+                        tracing::info!("Relay connection established via {}", relay);
+                        return Ok(connection);
+                    }
+                    Err(relay_err) => {
+                        tracing::warn!("Relay {} failed: {}", relay, relay_err);
+                        continue;
+                    }
+                }
+            }
+        }
+        
+        Err(NetworkError::Connection(std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "All relay servers failed"
+        )))
     }
 }
 

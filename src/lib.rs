@@ -6,6 +6,17 @@ pub mod network;
 pub use crypto::*;
 pub use network::*;
 
+/// Connection mode for P2P communication
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub enum ConnectionMode {
+    /// Try direct P2P first, fallback to relay
+    Auto,
+    /// Direct P2P connection only
+    DirectOnly,
+    /// Relay connection only
+    RelayOnly,
+}
+
 /// Application configuration
 #[derive(Clone)]
 pub struct Config {
@@ -24,8 +35,7 @@ impl Default for Config {
             max_message_size: 4096,    // 4KB
             connection_timeout: 30,    // seconds
             relay_servers: vec![
-                // Add your Cherry Server relay endpoints here
-                // Example: "your-server.cherryservers.net:8080".to_string()
+                "185.191.116.220:8080".to_string(),
             ],
         }
     }

@@ -26,13 +26,21 @@ pub struct AppState {
 #[command]
 async fn connect_to_peer(
     address: String,
+    mode: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     let addr: SocketAddr = address.parse()
         .map_err(|e| format!("Invalid address format: {}", e))?;
     
+    // Parse connection mode
+    let connection_mode = match mode.as_str() {
+        "direct" => silence::ConnectionMode::DirectOnly,
+        "relay" => silence::ConnectionMode::RelayOnly,
+        _ => silence::ConnectionMode::Auto, // default
+    };
+    
     let connection = state.connection_manager
-        .connect_to_peer(addr)
+        .connect_with_mode(addr, connection_mode)
         .await
         .map_err(|e| format!("Connection failed: {}", e))?;
     

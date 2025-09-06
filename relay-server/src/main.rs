@@ -79,7 +79,7 @@ impl RelayServer {
 
         loop {
             match listener.accept().await {
-                Ok((stream, addr)) => {
+                Ok((mut stream, addr)) => {
                     let clients_count = self.clients.lock().await.len();
                     
                     if clients_count >= self.args.max_clients {
@@ -119,9 +119,9 @@ impl ClientHandler {
     /// Handle a client connection
     async fn handle_client(
         &self, 
-        mut stream: TcpStream, 
+        stream: TcpStream, 
         addr: SocketAddr
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let client_id = Uuid::new_v4();
         let (tx, mut rx) = broadcast::channel(64);
         
@@ -137,10 +137,10 @@ impl ClientHandler {
         }
 
         // Split stream for concurrent read/write
-        let (mut read_half, mut write_half) = stream.split();
+        let (mut read_half, mut write_half) = stream.into_split();
         
         // Spawn task to handle outbound messages to this client
-        let clients_for_writer = Arc::clone(&self.clients);
+        let _clients_for_writer = Arc::clone(&self.clients);
         let client_id_for_writer = client_id;
         let write_task = tokio::spawn(async move {
             while let Ok(data) = rx.recv().await {
@@ -187,7 +187,7 @@ impl ClientHandler {
 
     /// Read a message from the stream (length-prefixed)
     async fn read_message(&self, stream: &mut tokio::net::tcp::OwnedReadHalf) -> 
-        Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
+        Result<Option<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
         
         // Read 4-byte length prefix
         let length = match stream.read_u32().await {
@@ -213,7 +213,7 @@ impl ClientHandler {
 
     /// Send a message to the stream (length-prefixed)
     async fn send_message(stream: &mut tokio::net::tcp::OwnedWriteHalf, data: &[u8]) -> 
-        Result<(), Box<dyn std::error::Error>> {
+        Result<(), Box<dyn std::error::Error + Send + Sync>> {
         
         let length = data.len() as u32;
         stream.write_u32(length).await?;
