@@ -330,35 +330,32 @@
             addMessage(`🔌 Attempting to connect to ${address}...`, 'system');
             updateConnectionStatus('connecting');
             
-            // TODO: Replace with actual Tauri command
-            // invoke('connect_to_peer', { address })
-            //     .then(result => {
-            //         addMessage(`✅ Connected to ${address}`, 'system');
-            //         updateConnectionStatus('connected');
-            //     })
-            //     .catch(error => {
-            //         addMessage(`❌ Connection failed: ${error}`, 'system');
-            //         updateConnectionStatus('disconnected');
-            //     });
-            
-            // Simulation for now
-            setTimeout(() => {
-                addMessage(`✅ Connected to ${address}`, 'system');
-                updateConnectionStatus('connected');
-            }, 2000);
+            // Connect using Tauri command
+            invoke('connect_to_peer', { address })
+                .then(result => {
+                    addMessage(`✅ ${result}`, 'system');
+                    updateConnectionStatus('connected');
+                })
+                .catch(error => {
+                    addMessage(`❌ Connection failed: ${error}`, 'system');
+                    updateConnectionStatus('disconnected');
+                });
         }
         
         function startListening() {
             addMessage('👂 Started listening for connections on port 8080', 'system');
             updateConnectionStatus('connecting');
             
-            // TODO: Replace with actual Tauri command
-            // invoke('start_listening', { port: 8080 })
-            
-            // Simulation
-            setTimeout(() => {
-                addMessage('📡 Listening for incoming connections...', 'system');
-            }, 1000);
+            // Start listening using Tauri command
+            invoke('start_listening', {})
+                .then(result => {
+                    addMessage(`📡 ${result}`, 'system');
+                    updateConnectionStatus('connecting');
+                })
+                .catch(error => {
+                    addMessage(`❌ Listen failed: ${error}`, 'system');
+                    updateConnectionStatus('disconnected');
+                });
         }
         
         function sendMessage() {
@@ -376,29 +373,61 @@
             addMessage(content, 'sent', 'You');
             input.value = '';
             
-            // TODO: Replace with actual Tauri command
-            // invoke('send_message', { content })
-            //     .catch(error => {
-            //         addMessage(`❌ Send failed: ${error}`, 'system');
-            //     });
+            // Send message using Tauri command
+            invoke('send_message', { content })
+                .then(result => {
+                    // Message sent successfully - already shown in UI above
+                })
+                .catch(error => {
+                    addMessage(`❌ Send failed: ${error}`, 'system');
+                });
         }
         
-        // Key rotation timer
-        setInterval(() => {
-            keyRotationTimer--;
-            document.getElementById('key-timer').textContent = `${keyRotationTimer}s`;
-            
-            if (keyRotationTimer <= 0) {
-                keyRotationTimer = 15;
-                addMessage('🔄 Keys rotated - Perfect forward secrecy maintained', 'system');
-            }
-        }, 1000);
+        // Security status update function
+        function updateSecurityStatus() {
+            invoke('get_security_status', {})
+                .then(status => {
+                    // Update encryption indicator
+                    const encryptionIndicator = document.getElementById('encryption-status');
+                    if (status.encryption_active) {
+                        encryptionIndicator.className = 'indicator';
+                    } else {
+                        encryptionIndicator.className = 'indicator error';
+                    }
+                    
+                    // Update connection indicator
+                    const connectionIndicator = document.getElementById('connection-status');
+                    if (status.connection_active) {
+                        connectionIndicator.className = 'indicator';
+                        connected = true;
+                    } else {
+                        connectionIndicator.className = 'indicator error';
+                        connected = false;
+                    }
+                    
+                    // Update key rotation timer
+                    const keyTimer = document.getElementById('key-timer');
+                    keyTimer.textContent = `${status.key_rotation_seconds}s`;
+                    
+                    // Check if key was rotated
+                    if (status.key_rotation_seconds > keyRotationTimer) {
+                        addMessage('🔄 Keys rotated - Perfect forward secrecy maintained', 'system');
+                    }
+                    keyRotationTimer = status.key_rotation_seconds;
+                })
+                .catch(error => {
+                    console.error('Failed to get security status:', error);
+                });
+        }
+        
+        // Update security status every second
+        setInterval(updateSecurityStatus, 1000);
         
         // Initialize
         updateConnectionStatus('disconnected');
         
-        // Tauri API integration (placeholder)
-        // const { invoke } = window.__TAURI__.tauri;
+        // Tauri API integration
+        const { invoke } = window.__TAURI__.tauri;
         
         // Simulated incoming message handler
         function handleIncomingMessage(content, sender) {
